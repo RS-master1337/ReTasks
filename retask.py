@@ -1,6 +1,7 @@
 from secret import token
 import telebot
 import speech_recognition as sr
+from datetime import datetime
 
 class Tasks(dict):  # this class keeps, loads, saves, adds and clears tasks
     
@@ -19,7 +20,6 @@ class Tasks(dict):  # this class keeps, loads, saves, adds and clears tasks
             self.tasks[msg.chat.id] = []
   
 tasks = Tasks()  # like classic dict but better
-done_tasks = {}
 
 bot = telebot.TeleBot(token)
 
@@ -33,20 +33,25 @@ def add(msg):
     global tasks  # DONE: delete /add from task desctription
     if msg not in tasks[msg.chat.id]:  # DONE: tasks for different people should be separated
         msg.text = msg.text[4:].strip()
+        msg.progresstime = []
+        msg.autotime = True
+        msg.done = None
         tasks[msg.chat.id].append(msg)#.text[4:].strip())
     for tid in sorted(list(tasks.keys())):
         print(tasks[tid])
  
 def format_task(task, i=0):
-    return ('%3i. %s \n' % (i, task.text))
+    if task.done is None:
+        return '%3i. %s \n' % (i, task.text)
+    return '%3i. <s>%s</s> \n' % (i, task.text)
         
 def format_list(task_list):
-    reply = ''
+    reply = ' '
     i = 1
         #print('preparing ' + task)
     for tsk in task_list:
-            reply += format_task(tsk, i)
-            i += 1
+        reply += format_task(tsk, i)
+        i += 1
     return reply
 
 @bot.message_handler(commands=['list'])
@@ -56,7 +61,10 @@ def tlist(msg):  # add "done" for done tasks with time
     print(reply)
     print (len(tasks[msg.chat.id]))
     if len(tasks[msg.chat.id]) == 0:
-        bot.send_message(msg.chat.id, '<b>У Вас нет задач, добавьте их, или отдохните!</b>', parse_mode='html')
+        bot.send_message(
+            msg.chat.id,
+            '<b>У Вас нет задач, добавьте их или отдохните!</b>',
+            parse_mode='html')
     bot.send_message(
         msg.chat.id,
         reply,
@@ -66,9 +74,6 @@ def tlist(msg):  # add "done" for done tasks with time
     
 @bot.message_handler(commands=['done'])
 def done(msg):
-    global done_tasks
-    if msg.chat.id not in done_tasks:
-        done_tasks[msg.chat.id] = []
     if msg.text.strip() == '/done':
         reply = format_list(done_tasks[msg.chat.id])
         print (reply)
@@ -84,10 +89,15 @@ def done(msg):
         if elem.isdigit():
             task_id = int(elem)
             if task_id > len(tasks[msg.chat.id]):
-                reply += '<b>%i task does not exists</b>\n' % (task_id)
+                reply += '<b>%i - такой задачи нет</b>\n' % (task_id)
             else:
-                done_tasks[msg.chat.id].append(tasks[msg.chat.id][task_id-1])
-                tasks[msg.chat.id][task_id-1] = '<s>%s</s>' % tasks[msg.chat.id][task_id-1]
+                tasks[msg.chat.id][task_id-1].done = int(datetime.now().timestamp())
+    reply += format_list(tasks[msg.chat.id])
+    bot.send_message(
+        msg.chat.id,
+        reply,
+        parse_mode='html'
+    ) 
 #   for(b= 1; b <= i; b++)
 #  def parse_done_list(user_input):
  #   numbers = []
@@ -106,4 +116,4 @@ def clear(msg):
     bot.send_message(msg.chat.id, '<b>Очистила!</b>', parse_mode='html')
     
     
-bot.polling(none_stop=True) 
+bot.polling(none_stop=True)
