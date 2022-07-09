@@ -12,12 +12,13 @@ class Tasks(dict):  # this class keeps, loads, saves, adds and clears tasks
     # def __init__(self):  # calls when object is created
     
     def __add__(self, msg):
-        print('koko')
-    
-    def __iadd__(self, msg):
-        print('kuku')
-        if msg.chat.id not in self.tasks:
-            self.tasks[msg.chat.id] = []
+        if msg not in self[msg.chat.id]:  # DONE: tasks for different people should be separated
+            msg.text = msg.text[4:].strip()
+            msg.progresstime = []
+            msg.autotime = True
+            msg.done = None
+            self[msg.chat.id].append(msg)
+        return self
   
 tasks = Tasks()  # like classic dict but better
 
@@ -31,22 +32,21 @@ def start(message):
 @bot.message_handler(commands=['add'])
 def add(msg):
     global tasks  # DONE: delete /add from task desctription
-    if msg not in tasks[msg.chat.id]:  # DONE: tasks for different people should be separated
-        msg.text = msg.text[4:].strip()
-        msg.progresstime = []
-        msg.autotime = True
-        msg.done = None
-        tasks[msg.chat.id].append(msg)#.text[4:].strip())
+    tasks += msg
     for tid in sorted(list(tasks.keys())):
-        print(tasks[tid])
+        for task in tasks[tid]:
+            print('\t' + task.text)
  
 def format_task(task, i=0):
     if task.done is None:
         return '%3i. %s \n' % (i, task.text)
-    return '%3i. <s>%s</s> \n' % (i, task.text)
+    return '%3i. \u2705 <s>%s</s> at %s\n' % (
+        i,
+        task.text,
+        datetime.fromtimestamp(task.done).strftime('%Y-%m-%d %H:%M'))
         
 def format_list(task_list, filtr='all'):
-    reply = ' '
+    reply = ''
     i = 1
         #print('preparing ' + task)
     for tsk in task_list:
@@ -55,6 +55,8 @@ def format_list(task_list, filtr='all'):
             filtr not in ['done', 'not_done']):
             reply += format_task(tsk, i)
         i += 1
+    if reply == '':
+        reply = '<b>У Вас нет задач, добавьте их или отдохните!</b>'
     return reply
 
 @bot.message_handler(commands=['list'])
@@ -70,13 +72,6 @@ def tlist(msg):  # add "done" for done tasks with time
         )
         return
     reply = format_list(tasks[msg.chat.id])
-    print(reply)
-    print (len(tasks[msg.chat.id]))
-    if len(tasks[msg.chat.id]) == 0:
-        bot.send_message(
-            msg.chat.id,
-            '<b>У Вас нет задач, добавьте их или отдохните!</b>',
-            parse_mode='html')
     bot.send_message(
         msg.chat.id,
         reply,
