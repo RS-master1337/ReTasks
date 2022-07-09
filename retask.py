@@ -2,7 +2,23 @@ from secret import token
 import telebot
 import speech_recognition as sr
 
-tasks = {}
+class Tasks(dict):  # this class keeps, loads, saves, adds and clears tasks
+    
+    def __getitem__(self, key):
+        if key not in self:
+            self[key] = []
+        return super(Tasks, self).__getitem__(key)
+    # def __init__(self):  # calls when object is created
+    
+    def __add__(self, msg):
+        print('koko')
+    
+    def __iadd__(self, msg):
+        print('kuku')
+        if msg.chat.id not in self.tasks:
+            self.tasks[msg.chat.id] = []
+  
+tasks = Tasks()  # like classic dict but better
 done_tasks = {}
 
 bot = telebot.TeleBot(token)
@@ -15,16 +31,14 @@ def start(message):
 @bot.message_handler(commands=['add'])
 def add(msg):
     global tasks  # DONE: delete /add from task desctription
-    if msg.chat.id not in tasks:
-        tasks[msg.chat.id] = []
     if msg not in tasks[msg.chat.id]:  # DONE: tasks for different people should be separated
-        tasks[msg.chat.id]
-        tasks[msg.chat.id].append(msg.text[4:].strip())
+        msg.text = msg.text[4:].strip()
+        tasks[msg.chat.id].append(msg)#.text[4:].strip())
     for tid in sorted(list(tasks.keys())):
         print(tasks[tid])
  
 def format_task(task, i=0):
-    return ('%3i. %s \n' % (i, task))
+    return ('%3i. %s \n' % (i, task.text))
         
 def format_list(task_list):
     reply = ''
@@ -37,11 +51,7 @@ def format_list(task_list):
 
 @bot.message_handler(commands=['list'])
 def tlist(msg):  # add "done" for done tasks with time
-    global tasks
-    print(type(tasks))
-    print(tasks)
-    if msg.chat.id not in tasks:
-        tasks[msg.chat.id] = []
+    #global tasks
     reply = format_list(tasks[msg.chat.id])
     print(reply)
     print (len(tasks[msg.chat.id]))
@@ -92,9 +102,7 @@ def clear(msg):
         done_tasks[msg.chat.id] = []
     done_tasks[msg.chat.id] = []
     global tasks
-    if msg.chat.id not in tasks:
-        tasks[msg.chat.id] = []
-    tasks = {}
+    tasks = Tasks()
     bot.send_message(msg.chat.id, '<b>Очистила!</b>', parse_mode='html')
     
     
