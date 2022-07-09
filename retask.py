@@ -1,6 +1,7 @@
 from secret import token
 import telebot
 import speech_recognition as sr
+from pydub import AudioSegment
 from datetime import datetime
 
 class Tasks(dict):  # this class keeps, loads, saves, adds and clears tasks
@@ -13,7 +14,8 @@ class Tasks(dict):  # this class keeps, loads, saves, adds and clears tasks
     
     def __add__(self, msg):
         if msg not in self[msg.chat.id]:  # DONE: tasks for different people should be separated
-            msg.text = msg.text[4:].strip()
+            if msg.text.startswith('/add'):
+                msg.text = msg.text[4:].strip()
             msg.progresstime = []
             msg.autotime = True
             msg.done = None
@@ -121,6 +123,37 @@ def clear(msg):
     global tasks
     tasks = Tasks()
     bot.send_message(msg.chat.id, '<b>Очистила!</b>', parse_mode='html')
-    
+
+@bot.message_handler(content_types=["voice"])
+def react_to_audio(msg):
+    file_info = bot.get_file(msg.voice.file_id)
+    ogg_data = bot.download_file(file_info.file_path)
+    fn = datetime.now().strftime('%Y%m%d%H%M%S')
+    oggfn = 'ogg/' + fn + '.ogg'
+    wavfn = 'wav/' + fn + '.wav'
+    with open(oggfn, 'wb') as oggf:
+        oggf.write(ogg_data)
+    sound = AudioSegment.from_ogg(oggfn)
+    sound.export(wavfn, format="wav")
+    r = sr.Recognizer()
+    with sr.AudioFile(wavfn) as wavf:
+        audio_data = r.record(wavf)
+    text = ''
+    try:
+        text = r.recognize_google(audio_data)
+    except:
+        bot.send_message(
+            msg.chat.id,
+            "Извините, я не поняла",
+            parse_mode='html')
+        return
+    print(text)
+    global tasks  # DONE: delete /add from task desctription
+    msg.text = text
+    tasks += msg
+    bot.send_message(
+        msg.chat.id,
+        "Вы сказали: " + text,
+        parse_mode='html')
     
 bot.polling(none_stop=True)
