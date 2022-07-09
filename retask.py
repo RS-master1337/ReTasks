@@ -45,18 +45,30 @@ def format_task(task, i=0):
         return '%3i. %s \n' % (i, task.text)
     return '%3i. <s>%s</s> \n' % (i, task.text)
         
-def format_list(task_list):
+def format_list(task_list, filtr='all'):
     reply = ' '
     i = 1
         #print('preparing ' + task)
     for tsk in task_list:
-        reply += format_task(tsk, i)
+        if (filtr == 'done' and tsk.done is not None) or (
+            filtr == 'not_done' and tsk.done is None) or (
+            filtr not in ['done', 'not_done']):
+            reply += format_task(tsk, i)
         i += 1
     return reply
 
 @bot.message_handler(commands=['list'])
 def tlist(msg):  # add "done" for done tasks with time
     #global tasks
+    if msg.text[5:].strip() == 'not done':
+        reply = format_list(tasks[msg.chat.id], 'not_done')
+        print (reply)
+        bot.send_message(
+            msg.chat.id,
+            reply,
+            parse_mode='html'
+        )
+        return
     reply = format_list(tasks[msg.chat.id])
     print(reply)
     print (len(tasks[msg.chat.id]))
@@ -75,13 +87,13 @@ def tlist(msg):  # add "done" for done tasks with time
 @bot.message_handler(commands=['done'])
 def done(msg):
     if msg.text.strip() == '/done':
-        reply = format_list(done_tasks[msg.chat.id])
+        reply = format_list(tasks[msg.chat.id], 'done')
         print (reply)
         bot.send_message(
             msg.chat.id,
             reply,
             parse_mode='html'
-        ) 
+        )
         return
     reply = ''
     new_done_list = msg.text.split()
